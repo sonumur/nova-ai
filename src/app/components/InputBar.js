@@ -46,7 +46,7 @@ export default function InputBar({ onSend }) {
 
   return (
     <div className="w-full">
-      <div className="bg-white rounded-3xl p-2 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 flex flex-col gap-2 transition-all focus-within:shadow-[0_4px_32px_rgba(0,0,0,0.1)] focus-within:border-gray-200">
+      <div className="bg-white/60 backdrop-blur-md rounded-2xl md:rounded-[1.5rem] p-1.5 md:p-2 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-white/20 flex flex-col gap-2 transition-all focus-within:shadow-[0_8px_32px_rgba(0,0,0,0.08)] focus-within:border-gray-200">
 
         {/* TEXT INPUT AREA */}
         <div className="px-4 pt-2">
@@ -65,7 +65,7 @@ export default function InputBar({ onSend }) {
             }}
             placeholder="Message Bluebox"
             rows={1}
-            className="w-full bg-transparent outline-none text-gray-800 text-lg placeholder-gray-400 resize-none max-height-[200px] py-1"
+            className="w-full bg-transparent outline-none text-gray-800 text-base md:text-lg placeholder-gray-400 resize-none max-h-[200px] py-1 md:py-1.5"
           />
         </div>
 
@@ -91,7 +91,7 @@ export default function InputBar({ onSend }) {
               onClick={send}
               disabled={!value.trim()}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${value.trim()
-                ? "bg-[#4d6bfe] text-white shadow-lg shadow-[#4d6bfe]/20 hover:scale-105"
+                ? "bg-[#4d6bfe] text-white shadow-lg shadow-[#4d6bfe]/20 hover:scale-105 active:scale-95"
                 : "bg-gray-100 text-gray-300 cursor-not-allowed"
                 }`}
             >

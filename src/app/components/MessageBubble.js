@@ -7,9 +7,9 @@ function MessageBubble({ role, content, isTyping }) {
   return (
     <div className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded-2xl transition-all 
+        className={`max-w-[92%] md:max-w-[85%] rounded-2xl transition-all 
         ${isUser
-            ? "bg-[#f4f4f4] text-gray-800 px-4 py-2.5 rounded-br-none shadow-sm"
+            ? "bg-[#f4f4f4] text-gray-800 px-3.5 py-2 md:px-4 md:py-2.5 rounded-br-none shadow-sm"
             : "bg-transparent text-gray-800 px-0 py-2"
           }`}
       >
@@ -22,7 +22,7 @@ function MessageBubble({ role, content, isTyping }) {
           </div>
         )}
 
-        <div className="prose prose-sm max-w-none text-[15px] leading-relaxed">
+        <div className="prose prose-sm max-w-none text-[14px] md:text-[15px] leading-relaxed">
           {typeof content === 'string' ? (
             <ReactMarkdown
               components={{

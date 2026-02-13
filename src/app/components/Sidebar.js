@@ -60,13 +60,13 @@ export default function Sidebar({ isOpen, onClose, onSelectChat, onNewChat, acti
             )}
 
             <div className={`
-        fixed inset-y-0 left-0 z-50 flex h-full transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 flex h-full transform transition-transform duration-300 ease-out
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
         md:translate-x-0 md:relative
       `}>
 
                 {/* Chat List Container */}
-                <div className="w-60 bg-[#f9f9f9] border-r border-[#e5e5e5] flex flex-col">
+                <div className="w-[280px] md:w-60 bg-[#f9f9f9] border-r border-[#e5e5e5] flex flex-col shadow-2xl md:shadow-none">
                     {/* New Chat Button */}
                     <div className="p-4">
                         <button

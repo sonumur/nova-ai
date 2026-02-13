@@ -309,7 +309,7 @@ export default function Chat() {
 
 
   return (
-    <div className="flex h-screen bg-white font-sans text-gray-900 overflow-hidden relative">
+    <div className="flex h-screen h-[100dvh] bg-white font-sans text-gray-900 overflow-hidden relative">
 
       {/* SIDEBAR */}
       <Sidebar
@@ -323,8 +323,8 @@ export default function Chat() {
       {/* MAIN CHAT AREA */}
       <div className="flex-1 flex flex-col relative z-10 h-full bg-white">
 
-        {/* Header (with Hamburger & Model Selector) */}
-        <div className="flex items-center justify-between px-4 py-3 md:px-6 border-b border-gray-100">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 md:px-6 border-b border-gray-50 z-30">
           <div className="flex items-center">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -349,47 +349,52 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* MESSAGES LIST */}
-        <div className="flex-1 overflow-y-auto px-4">
-          <div className="max-w-3xl mx-auto pt-8 pb-32 min-h-full">
-            {messages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] text-center">
-                <div className="w-16 h-16 bg-[#4d6bfe]/10 text-[#4d6bfe] rounded-2xl flex items-center justify-center mb-6 animate-bounce transition-all duration-[3000ms]">
-                  <img src="/logo.svg" alt="Bluebox Logo" className="w-10 h-10" />
+        {/* MESSAGES LIST CONTAINER */}
+        <div className="flex-1 relative overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-y-auto px-4 md:px-6 scroll-smooth">
+            <div className="max-w-3xl mx-auto pt-8 pb-4 min-h-full">
+              {messages.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] text-center">
+                  <div className="w-16 h-16 bg-[#4d6bfe]/10 text-[#4d6bfe] rounded-2xl flex items-center justify-center mb-6 animate-bounce transition-all duration-[3000ms]">
+                    <img src="/logo.svg" alt="Bluebox Logo" className="w-10 h-10" />
+                  </div>
+                  <h2 className="text-3xl font-semibold text-gray-800 mb-2">What brings you here today?</h2>
+                  <p className="text-gray-500 max-w-sm">I'm Bluebox, your AI assistant. Ask me anything or search the latest news.</p>
                 </div>
-                <h2 className="text-3xl font-semibold text-gray-800 mb-2">What brings you here today?</h2>
-                <p className="text-gray-500 max-w-sm">I'm Bluebox, your AI assistant. Ask me anything or search the latest news.</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-8">
-                {messages.map((msg, i) => (
-                  <MessageBubble
-                    key={msg.id || i}
-                    role={msg.role}
-                    content={
-                      msg.type === "image"
-                        ? { image: msg.content }
-                        : msg.content
-                    }
-                    isTyping={
-                      typing &&
-                      i === messages.length - 1 &&
-                      msg.role === "assistant"
-                    }
-                  />
-                ))}
-              </div>
-            )}
-            <div ref={bottomRef} className="h-10" />
+              ) : (
+                <div className="flex flex-col gap-8">
+                  {messages.map((msg, i) => (
+                    <MessageBubble
+                      key={msg.id || i}
+                      role={msg.role}
+                      content={
+                        msg.type === "image"
+                          ? { image: msg.content }
+                          : msg.content
+                      }
+                      isTyping={
+                        typing &&
+                        i === messages.length - 1 &&
+                        msg.role === "assistant"
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+              <div ref={bottomRef} className="h-4" />
+            </div>
           </div>
+
+          {/* Bottom Fade Overlay (Sharpened to prevent excessive fade-out) */}
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white via-white/80 to-transparent z-20 pointer-events-none" />
         </div>
 
-        {/* INPUT BAR (Floating at bottom constrained to parent) */}
-        <div className="absolute bottom-6 left-0 right-0 px-4 z-20">
+        {/* INPUT AREA (Translucent Glassmorphism) */}
+        <div className="bg-white/80 backdrop-blur-xl px-4 md:px-6 py-4 md:py-6 z-30 relative border-t border-white/20">
           <div className="max-w-3xl mx-auto">
             <InputBar onSend={sendMessage} />
-            <div className="mt-4 text-center">
-              <p className="text-[10px] text-gray-400 font-medium">
+            <div className="mt-2 md:mt-4 text-center">
+              <p className="text-[9px] md:text-[10px] text-gray-400 font-medium italic">
                 Bluebox can make mistakes. Please check important information.
               </p>
             </div>
@@ -397,7 +402,6 @@ export default function Chat() {
         </div>
 
       </div>
-
     </div>
   );
 }
