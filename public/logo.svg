@@ -1,0 +1,43 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="stripes1" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+      <rect width="4" height="8" fill="#6366f1"/>
+      <rect x="4" width="4" height="8" fill="white"/>
+    </pattern>
+    <pattern id="stripes2" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(-45)">
+      <rect width="4" height="8" fill="#6366f1"/>
+      <rect x="4" width="4" height="8" fill="white"/>
+    </pattern>
+    <pattern id="stripes3" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(0)">
+      <rect width="4" height="8" fill="#6366f1"/>
+      <rect x="4" width="4" height="8" fill="white"/>
+    </pattern>
+  </defs>
+  
+  <!-- Hexagon divided into 6 sections with different stripe patterns -->
+  <g transform="translate(100, 100)">
+    <!-- Top section -->
+    <path d="M 0,-70 L 60.6,-35 L 0,0 Z" fill="url(#stripes1)"/>
+    
+    <!-- Top-right section -->
+    <path d="M 60.6,-35 L 60.6,35 L 0,0 Z" fill="url(#stripes2)"/>
+    
+    <!-- Bottom-right section -->
+    <path d="M 60.6,35 L 0,70 L 0,0 Z" fill="url(#stripes3)"/>
+    
+    <!-- Bottom section -->
+    <path d="M 0,70 L -60.6,35 L 0,0 Z" fill="url(#stripes1)"/>
+    
+    <!-- Bottom-left section -->
+    <path d="M -60.6,35 L -60.6,-35 L 0,0 Z" fill="url(#stripes2)"/>
+    
+    <!-- Top-left section -->
+    <path d="M -60.6,-35 L 0,-70 L 0,0 Z" fill="url(#stripes3)"/>
+    
+    <!-- Hexagon outline -->
+    <path d="M 0,-70 L 60.6,-35 L 60.6,35 L 0,70 L -60.6,35 L -60.6,-35 Z" 
+          fill="none" 
+          stroke="#6366f1" 
+          stroke-width="2"/>
+  </g>
+</svg>
