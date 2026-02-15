@@ -13,6 +13,7 @@ import {
 import { motion } from "framer-motion";
 import { db } from "../../../lib/firebase";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
+import UsageChart from "../components/UsageChart";
 
 export default function ChatAnalytics() {
     const [totalChats, setTotalChats] = useState(0);
@@ -76,84 +77,12 @@ export default function ChatAnalytics() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Graph Card */}
                 <div className="lg:col-span-2 space-y-8">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm relative overflow-hidden h-[450px]"
-                    >
-                        <div className="flex justify-between items-start mb-12">
-                            <div>
-                                <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                    <TrendingUp className="text-[#4d6bfe]" size={20} />
-                                    Interaction Velocity
-                                </h4>
-                                <p className="text-xs text-gray-400 mt-1">Real-time chat frequency over the last 30 minutes</p>
-                            </div>
-                            <button className="p-2 text-gray-400 hover:text-gray-600">
-                                <BarChart3 size={20} />
-                            </button>
-                        </div>
-
-                        {/* Large Live SVG Graph */}
-                        <div className="relative h-[250px] w-full mt-4">
-                            <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 40">
-                                <defs>
-                                    <linearGradient id="liveGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#4d6bfe" stopOpacity="0.3" />
-                                        <stop offset="100%" stopColor="#4d6bfe" stopOpacity="0" />
-                                    </linearGradient>
-                                </defs>
-
-                                {/* Grid */}
-                                {[10, 20, 30].map(y => (
-                                    <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#f1f5f9" strokeWidth="0.1" />
-                                ))}
-
-                                {/* Moving Path */}
-                                <motion.path
-                                    d={`M ${chatData.map((v, i) => `${i * 11.1},${40 - v}`).join(" L ")}`}
-                                    fill="none"
-                                    stroke="#4d6bfe"
-                                    strokeWidth="0.8"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    layout
-                                />
-
-                                <motion.path
-                                    d={`M ${chatData.map((v, i) => `${i * 11.1},${40 - v}`).join(" L ")} L 100,40 L 0,40 Z`}
-                                    fill="url(#liveGradient)"
-                                    layout
-                                />
-                            </svg>
-
-                            <div className="absolute inset-x-0 bottom-[-20px] flex justify-between px-2 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                                <span>-30 min</span>
-                                <span>-20 min</span>
-                                <span>-10 min</span>
-                                <span>Now</span>
-                            </div>
-                        </div>
-
-                        <div className="mt-12 pt-8 border-t border-gray-50 flex items-center gap-12">
-                            <div>
-                                <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Current Velocity</p>
-                                <div className="flex items-center gap-2">
-                                    <p className="text-xl font-black text-gray-800">{interactionRate} RPM</p>
-                                    {rpmDelta !== 0 && (
-                                        <div className={`flex items-center gap-0.5 text-xs font-bold ${rpmDelta > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                            {rpmDelta > 0 ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                            {Math.abs(rpmDelta)}%
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            <div>
-                                <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Avg Session</p>
-                                <p className="text-xl font-black text-gray-800">8.4 mins</p>
-                            </div>
-                        </div>
-                    </motion.div>
+                    <UsageChart
+                        title="Interaction Velocity"
+                        value={`${interactionRate} RPM`}
+                        subValue={rpmDelta !== 0 ? `${rpmDelta > 0 ? '+' : ''}${rpmDelta}%` : 'Stable'}
+                        data={chatData.map((val, i) => ({ name: `${i}m ago`, value: val }))}
+                    />
                 </div>
 
                 {/* Counter Block & Activity */}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble";
 import InputBar from "./InputBar";
@@ -27,16 +28,65 @@ export default function Chat() {
   const [typing, setTyping] = useState(false);
   const [cursor, setCursor] = useState(true);
   const [user, setUser] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [chatId, setChatId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const bottomRef = useRef(null);
+  const scrollRef = useRef(null);
 
   // 1. Auth & Initial Setup
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       if (u && !u.isAnonymous) {
         setUser(u);
+
+        // Listen to user document for role/limits
+        const userRef = doc(db, "users", u.uid);
+        const unsubUser = onSnapshot(userRef, async (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+
+            // --- AUTOMATED EXPIRY CHECK ---
+            if (data.role === "pro" && data.subscriptionExpiry) {
+              const expiry = new Date(data.subscriptionExpiry);
+              const now = new Date();
+
+              if (now > expiry) {
+                console.log("Subscription expired. Reverting to Free tier...");
+                const revertData = {
+                  role: "free",
+                  isPro: false,
+                  messageLimit: 25,
+                  subscriptionPlan: "Free",
+                  modelTier: "basic"
+                };
+                await updateDoc(userRef, revertData);
+                setUserData({ ...data, ...revertData });
+                return;
+              }
+            }
+            // --- END EXPIRY CHECK ---
+
+            setUserData(data);
+          } else {
+            // Initialize default FREE limits for new users
+            const defaultData = {
+              email: u.email,
+              role: "free",
+              isPro: false,
+              messageLimit: 25,
+              tokenLimit: 10000,
+              modelTier: "basic",
+              dailyMessageCount: 0,
+              dailyTokenCount: 0,
+              lastUsageReset: new Date().toISOString().split('T')[0] // YYYY-MM-DD
+            };
+            setDoc(userRef, defaultData);
+            setUserData(defaultData);
+          }
+        });
+        return () => unsubUser();
       } else {
         // Redirect to login if no user or anonymous user
         window.location.href = "/";
@@ -83,6 +133,9 @@ export default function Chat() {
     try {
       const docRef = await addDoc(collection(db, "chats"), {
         userId: user.uid,
+        userEmail: user.email,
+        userName: user.displayName,
+        userPhotoURL: user.photoURL,
         createdAt: serverTimestamp(),
         title: "New Chat",
         updatedAt: serverTimestamp()
@@ -118,9 +171,16 @@ export default function Chat() {
     return () => unsubscribe();
   }, [chatId]);
 
-  // 4. Auto-scroll
+  // 4. Smart Auto-scroll
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!scrollRef.current) return;
+
+    const container = scrollRef.current;
+    const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+
+    if (isAtBottom || !typing) {
+      bottomRef.current?.scrollIntoView({ behavior: typing ? "auto" : "smooth" });
+    }
   }, [messages, typing]);
 
   // 5. Cursor Blinking
@@ -132,7 +192,34 @@ export default function Chat() {
 
 
   async function sendMessage(userMessage) {
-    if (!userMessage.trim() || !chatId) return;
+    if (!userMessage.trim() || !chatId || !user) return;
+
+    // --- USAGE LIMIT CHECK ---
+    const today = new Date().toISOString().split('T')[0];
+    const isFree = !userData || userData.role === "free";
+
+    // Check for daily reset
+    let effectiveMessageCount = userData?.dailyMessageCount || 0;
+    if (userData?.lastUsageReset !== today) {
+      effectiveMessageCount = 0; // Reset conceptually for this request
+      try {
+        await updateDoc(doc(db, "users", user.uid), {
+          dailyMessageCount: 0,
+          dailyTokenCount: 0,
+          lastUsageReset: today
+        });
+      } catch (err) {
+        console.warn("Usage reset failed:", err);
+      }
+    }
+
+    // Check message limit for free users using the effective count
+    // GUARD: If userData is still loading, we don't block them yet to avoid false-positives
+    if (userData && isFree && effectiveMessageCount >= (userData?.messageLimit || 25)) {
+      alert("⚠️ Daily message limit reached (25/day). Please upgrade to Pro for unlimited messages!");
+      return;
+    }
+    // --- END USAGE LIMIT CHECK ---
 
     setTyping(true);
 
@@ -145,6 +232,15 @@ export default function Chat() {
       };
 
       await addDoc(collection(db, "chats", chatId, "messages"), messageData);
+
+      // Increment usage count in Firestore
+      try {
+        await updateDoc(doc(db, "users", user.uid), {
+          dailyMessageCount: (userData?.dailyMessageCount || 0) + 1
+        });
+      } catch (err) {
+        console.warn("Could not increment usage count:", err);
+      }
 
       // Update Chat Title if it's the first message
       if (messages.length === 0) {
@@ -224,7 +320,10 @@ export default function Chat() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: cleanMessages })
+        body: JSON.stringify({
+          messages: cleanMessages,
+          modelTier: userData?.modelTier || "basic"
+        })
       });
 
       if (!res.ok) {
@@ -258,11 +357,8 @@ export default function Chat() {
         }
       }
 
-      // Ensure final state is captured
-      setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== "temp-stream");
-        return [...filtered, { role: "assistant", type: "text", content: aiText || "...", id: "temp-stream" }];
-      });
+      // Remove temp message BEFORE saving to Firebase to prevent duplicates
+      setMessages(prev => prev.filter(m => m.id !== "temp-stream"));
 
       // Save Final AI Message to DB
       if (aiText.trim()) {
@@ -294,6 +390,9 @@ export default function Chat() {
         errorMessage = `⚠️ ${err?.message || "Unknown error"}`;
       }
 
+      // Remove temp message before showing error
+      setMessages(prev => prev.filter(m => m.id !== "temp-stream"));
+
       await addDoc(collection(db, "chats", chatId, "messages"), {
         role: "assistant",
         type: "text",
@@ -302,8 +401,6 @@ export default function Chat() {
       });
     } finally {
       setTyping(false);
-      // Explicitly clear the local temp stream
-      setMessages(prev => prev.filter(m => m.id !== "temp-stream"));
     }
   }
 
@@ -345,16 +442,32 @@ export default function Chat() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            {/* Share button removed as per user request */}
+            {/* Conditional Upgrade Button or PRO Badge */}
+            {!userData?.isPro ? (
+              <Link
+                href="/subscription"
+                className="flex items-center px-3 md:px-5 py-2 md:py-2.5 bg-[#4d6bfe] hover:bg-[#3b55d1] text-white text-[10px] md:text-sm font-semibold rounded-xl md:rounded-2xl shadow-lg shadow-[#4d6bfe]/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Upgrade to Pro
+              </Link>
+            ) : (
+              <div className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 bg-yellow-400/10 border border-yellow-400/20 text-yellow-600 rounded-lg md:rounded-xl">
+                <Sparkles size={12} fill="currentColor" />
+                <span className="text-[9px] md:text-[11px] font-bold uppercase tracking-wider">Pro Member</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* MESSAGES LIST CONTAINER */}
         <div className="flex-1 relative overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-y-auto px-4 md:px-6 scroll-smooth">
-            <div className="max-w-3xl mx-auto pt-8 pb-4 min-h-full">
+          <div
+            ref={scrollRef}
+            className={`flex-1 ${messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto'} px-4 md:px-6`}
+          >
+            <div className="max-w-3xl mx-auto pt-8 pb-4 min-h-full flex flex-col">
               {messages.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] text-center">
+                <div className="flex-1 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in duration-700">
                   <div className="w-16 h-16 bg-[#4d6bfe]/10 text-[#4d6bfe] rounded-2xl flex items-center justify-center mb-6 animate-bounce transition-all duration-[3000ms]">
                     <img src="/logo.svg" alt="Bluebox Logo" className="w-10 h-10" />
                   </div>
@@ -381,7 +494,7 @@ export default function Chat() {
                   ))}
                 </div>
               )}
-              <div ref={bottomRef} className="h-4" />
+              <div ref={bottomRef} className="h-32 md:h-[20vh]" />
             </div>
           </div>
 
@@ -394,7 +507,7 @@ export default function Chat() {
           <div className="max-w-3xl mx-auto">
             <InputBar onSend={sendMessage} />
             <div className="mt-2 md:mt-4 text-center">
-              <p className="text-[9px] md:text-[10px] text-gray-400 font-medium italic">
+              <p className="text-[10px] md:text-[11px] text-gray-400 font-bold">
                 Bluebox can make mistakes. Please check important information.
               </p>
             </div>

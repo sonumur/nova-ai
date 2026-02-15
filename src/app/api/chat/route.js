@@ -4,7 +4,7 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-const MAX_MESSAGES = 6;
+const MAX_MESSAGES = 12;
 
 export async function POST(req) {
   try {
@@ -27,17 +27,22 @@ export async function POST(req) {
     // trim context
     messages = messages.slice(-MAX_MESSAGES);
 
-    // Detect if any message contains an image
+    const modelTier = body.modelTier || "basic";
+
     const hasImage = messages.some(m =>
       Array.isArray(m.content) &&
       m.content.some(c => c.type === "image_url")
     );
 
-    const modelObj = hasImage
-      ? "groq/meta-llama/llama-4-scout-17b-16e-instruct"
-      : "llama-3.3-70b-versatile";
+    let modelObj;
+    if (hasImage) {
+      modelObj = "groq/meta-llama/llama-4-scout-17b-16e-instruct";
+    } else {
+      // PRO gets the better/larger model, FREE gets the fast but smaller one
+      modelObj = modelTier === "premium" ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant";
+    }
 
-    console.log(`Using model: ${modelObj}`);
+    console.log(`Tier: ${modelTier}, Using model: ${modelObj}`);
 
     // Avoid double system messages - if Chat.js already sent one, don't add another here
     const finalMessages = messages.some(m => m.role === "system")
@@ -68,6 +73,9 @@ export async function POST(req) {
             const text = chunk.choices?.[0]?.delta?.content;
             if (text) {
               controller.enqueue(encoder.encode(text));
+              // Add a small delay based on tier (PRO is instant, FREE is standard)
+              const lagBase = modelTier === "premium" ? 0 : 60;
+              await new Promise(resolve => setTimeout(resolve, Math.random() * 20 + lagBase));
             }
           }
         } catch (err) {

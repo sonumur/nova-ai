@@ -8,10 +8,20 @@ import { onAuthStateChanged } from "firebase/auth";
 export default function Sidebar({ isOpen, onClose, onSelectChat, onNewChat, activeChatId }) {
     const [chats, setChats] = useState([]);
     const [user, setUser] = useState(null);
+    const [userData, setUserData] = useState(null);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (u) => {
             setUser(u);
+            if (u) {
+                // Listen to user metadata for Pro status
+                const unsubUser = onSnapshot(doc(db, "users", u.uid), (snap) => {
+                    if (snap.exists()) setUserData(snap.data());
+                });
+                return () => unsubUser();
+            } else {
+                setUserData(null);
+            }
         });
         return () => unsubscribe();
     }, []);
@@ -148,8 +158,15 @@ export default function Sidebar({ isOpen, onClose, onSelectChat, onNewChat, acti
                                 />
                             </div>
                             <div className="flex-1 truncate">
-                                <div className="text-sm font-medium text-gray-800 truncate">
-                                    {user?.displayName || user?.email?.split('@')[0] || "Sign out"}
+                                <div className="flex items-center gap-1.5 truncate">
+                                    <div className="text-sm font-medium text-gray-800 truncate">
+                                        {user?.displayName || user?.email?.split('@')[0] || "Sign out"}
+                                    </div>
+                                    {userData?.role === "pro" && (
+                                        <div className="px-1.5 py-0.5 bg-yellow-400/20 border border-yellow-400/30 rounded text-[8px] font-black text-yellow-700 uppercase leading-none">
+                                            Pro
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="text-[10px] text-gray-400 truncate group-hover:text-red-400">
                                     Click to sign out
