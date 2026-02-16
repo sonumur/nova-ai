@@ -5,19 +5,57 @@ export default function InputBar({ onSend }) {
   const [value, setValue] = useState("");
   const [blueboxThink, setBlueboxThink] = useState(false);
   const [search, setSearch] = useState(false);
+  const [news, setNews] = useState(false);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef(null);
+
+  const typoMap = {
+    "teh": "the",
+    "spaling": "spelling",
+    "speling": "spelling",
+    "currect": "correct",
+    "mistach": "mistake",
+    "mistak": "mistake",
+    "beleive": "believe",
+    "recieve": "receive",
+    "definately": "definitely",
+    "seperate": "separate",
+    "alot": "a lot",
+    "occured": "occurred",
+    "happend": "happened",
+    "realtime": "real-time",
+    "googl": "google"
+  };
+
+  function autoCorrectText(text) {
+    const words = text.split(/\s+/);
+    const correctedWords = words.map(word => {
+      const cleanWord = word.toLowerCase().replace(/[.,!?;:]/g, "");
+      const correction = typoMap[cleanWord];
+      if (correction) {
+        // Preserving case for the first letter if it was capitalized
+        if (word[0] === word[0].toUpperCase()) {
+          return correction.charAt(0).toUpperCase() + correction.slice(1) + word.slice(cleanWord.length);
+        }
+        return correction + word.slice(cleanWord.length);
+      }
+      return word;
+    });
+    return correctedWords.join(" ");
+  }
 
   function send() {
     if (!value.trim()) return;
 
     // Construct the message based on toggles
-    let finalValue = value;
+    let finalValue = autoCorrectText(value);
     if (blueboxThink) finalValue = `[BlueboxThink] ${finalValue}`;
     if (search) finalValue = `[Search] ${finalValue}`;
+    if (news) finalValue = `[News] ${finalValue}`;
 
     onSend(finalValue);
     setValue("");
+    setNews(false); // Reset news toggle after send
   }
 
   function startVoice() {
@@ -65,6 +103,7 @@ export default function InputBar({ onSend }) {
             }}
             placeholder="Message Bluebox"
             rows={1}
+            spellCheck="true"
             className="w-full bg-transparent outline-none text-gray-800 text-base md:text-lg placeholder-gray-400 resize-none max-h-[200px] py-1 md:py-1.5"
           />
         </div>
@@ -72,7 +111,31 @@ export default function InputBar({ onSend }) {
         {/* TOOLBAR AREA */}
         <div className="flex items-center justify-between px-2 pb-1">
           <div className="flex items-center gap-2">
-            {/* Toggle buttons removed */}
+            <button
+              onClick={() => setNews(!news)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] md:text-xs font-semibold transition-all shadow-sm ${news
+                ? "bg-[#4d6bfe] text-white shadow-[#4d6bfe]/20"
+                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                <path d="M3.5 13.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.5-.5ZM15 7.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5ZM15 9.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5ZM15 11.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5ZM15 13.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5ZM12.5 5h1a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5ZM10 5h1a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5ZM7.5 5h1a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5ZM5 5h1a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5ZM3 4.5A1.5 1.5 0 0 1 4.5 3h11A1.5 1.5 0 0 1 17 4.5v10A1.5 1.5 0 0 1 15.5 16h-11A1.5 1.5 0 0 1 3 14.5v-10ZM4.5 4a.5.5 0 0 0-.5.5v10a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5h-11Z" />
+              </svg>
+              Live News
+            </button>
+
+            <button
+              onClick={() => setSearch(!search)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] md:text-xs font-semibold transition-all shadow-sm ${search
+                ? "bg-[#4d6bfe] text-white shadow-[#4d6bfe]/20"
+                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+              Search
+            </button>
           </div>
 
           <div className="flex items-center gap-3">

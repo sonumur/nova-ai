@@ -24,12 +24,17 @@ export async function POST(req) {
       return new Response("No messages provided", { status: 400 });
     }
 
-    // trim context
-    messages = messages.slice(-MAX_MESSAGES);
+    // 1. Extract System Message (if any)
+    const existingSystemMsg = messages.find(m => m.role === "system");
+
+    // 2. Filter out system message and slice history
+    const history = messages
+      .filter(m => m.role !== "system")
+      .slice(-MAX_MESSAGES);
 
     const modelTier = body.modelTier || "basic";
 
-    const hasImage = messages.some(m =>
+    const hasImage = history.some(m =>
       Array.isArray(m.content) &&
       m.content.some(c => c.type === "image_url")
     );
@@ -38,23 +43,19 @@ export async function POST(req) {
     if (hasImage) {
       modelObj = "groq/meta-llama/llama-4-scout-17b-16e-instruct";
     } else {
-      // PRO gets the better/larger model, FREE gets the fast but smaller one
       modelObj = modelTier === "premium" ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant";
     }
 
     console.log(`Tier: ${modelTier}, Using model: ${modelObj}`);
 
-    // Avoid double system messages - if Chat.js already sent one, don't add another here
-    const finalMessages = messages.some(m => m.role === "system")
-      ? messages
-      : [
-        {
-          role: "system",
-          content:
-            "You are Bluebox, an adorable and very human-like AI assistant developed for this app. Use natural conversational fillers like 'hmm...', 'Oo!', or 'Haha' occasionally. Reactions like 'you got me' or 'I see!' make you feel more real. IMPORTANT: If asked who you are, say you are 'Bluebox, your local AI assistant'. Do NOT mention being a LLaMA model, Meta AI, or any other company. Keep replies short, warm, and natural.",
-        },
-        ...messages,
-      ];
+    // 3. Construct Final Messages
+    const finalMessages = [
+      existingSystemMsg || {
+        role: "system",
+        content: `You are Bluebox, a friendly AI assistant. Your name is ONLY Bluebox. Use natural conversational fillers. Reactions make you feel more real. Note: The current date is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. ⚠️ IMPORTANT: NEVER mention your "knowledge cutoff", "training data", or that you only have information up to 2023.`
+      },
+      ...history,
+    ];
 
     const stream = await groq.chat.completions.create({
       model: modelObj,
