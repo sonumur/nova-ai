@@ -43,10 +43,27 @@ export async function POST(req) {
                 if (userId) {
                     console.log(`Processing Pro upgrade for User ID: ${userId} (${billingCycle})`);
 
-                    // 1. Calculate Expiry
-                    const now = new Date();
-                    const daysToAdd = billingCycle === "yearly" ? 365 : 30;
-                    const expiryDate = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+                    // 1. Calculate Expiry (Cumulative)
+                    const userRef = doc(db, "users", userId);
+                    const userSnap = await getDocs(query(collection(db, "users"), where("__name__", "==", userId))); // Use getDocs for robust check
+                    let baseDate = new Date();
+
+                    if (!userSnap.empty) {
+                        const userData = userSnap.docs[0].data();
+                        if (userData.isPro && userData.subscriptionExpiry) {
+                            const currentExpiry = new Date(userData.subscriptionExpiry);
+                            if (currentExpiry > baseDate) {
+                                baseDate = currentExpiry;
+                            }
+                        }
+                    }
+
+                    const expiryDate = new Date(baseDate);
+                    if (billingCycle === "yearly") {
+                        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+                    } else {
+                        expiryDate.setMonth(expiryDate.getMonth() + 1);
+                    }
 
                     // 2. Log Payment Record (Idempotent using payment.id)
                     await setDoc(doc(db, "payments", payment.id), {
@@ -62,7 +79,7 @@ export async function POST(req) {
                     });
 
                     // 3. Update User Status
-                    await setDoc(doc(db, "users", userId), {
+                    await setDoc(userRef, {
                         email: email,
                         isPro: true,
                         role: "pro",
@@ -76,7 +93,7 @@ export async function POST(req) {
                         subscriptionUpdatedAt: serverTimestamp()
                     }, { merge: true });
 
-                    console.log(`Successfully upgraded User ID: ${userId} to Pro. Expiry: ${expiryDate.toISOString()}`);
+                    console.log(`Successfully upgraded User ID: ${userId} to Pro. New Expiry: ${expiryDate.toISOString()}`);
                 } else {
                     console.error("No userId found in payment notes.");
                 }

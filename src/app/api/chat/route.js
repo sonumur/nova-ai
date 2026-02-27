@@ -6,6 +6,34 @@ const groq = new Groq({
 
 const MAX_MESSAGES = 12;
 
+async function callOpenRouter(messages, modelTier) {
+  // Use model from env if provided, otherwise default to a reliable free model
+  const model = process.env.OPENROUTER_MODEL || "mistralai/mistral-7b-instruct:free";
+  console.log(`OpenRouter: Falling back to model: ${model}`);
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "HTTP-Referer": "https://bluebox-ai.vercel.app", // Optional, for OpenRouter rankings
+      "X-Title": "Bluebox AI", // Optional
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: messages,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenRouter API error: ${response.status} ${errorText}`);
+  }
+
+  return response.body;
+}
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -19,15 +47,11 @@ export async function POST(req) {
       )
       : [];
 
-    // ❗ if no user message, stop early
     if (messages.length === 0) {
       return new Response("No messages provided", { status: 400 });
     }
 
-    // 1. Extract System Message (if any)
     const existingSystemMsg = messages.find(m => m.role === "system");
-
-    // 2. Filter out system message and slice history
     const history = messages
       .filter(m => m.role !== "system")
       .slice(-MAX_MESSAGES);
@@ -46,9 +70,6 @@ export async function POST(req) {
       modelObj = modelTier === "premium" ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant";
     }
 
-    console.log(`Tier: ${modelTier}, Using model: ${modelObj}`);
-
-    // 3. Construct Final Messages
     const finalMessages = [
       existingSystemMsg || {
         role: "system",
@@ -57,39 +78,61 @@ export async function POST(req) {
       ...history,
     ];
 
-    const stream = await groq.chat.completions.create({
-      model: modelObj,
-      messages: finalMessages,
-      max_tokens: 512,
-      temperature: 0.7,
-      stream: true,
-    });
-
     const encoder = new TextEncoder();
 
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            const text = chunk.choices?.[0]?.delta?.content;
-            if (text) {
-              controller.enqueue(encoder.encode(text));
-              // Add a small delay based on tier (PRO is instant, FREE is standard)
-              const lagBase = modelTier === "premium" ? 0 : 60;
-              await new Promise(resolve => setTimeout(resolve, Math.random() * 20 + lagBase));
-            }
-          }
-        } catch (err) {
-          console.error("STREAM ERROR:", err);
-        } finally {
-          controller.close();
-        }
-      },
-    });
+    // Try Groq First
+    try {
+      console.log(`Tier: ${modelTier}, Attempting Groq with: ${modelObj}`);
+      const stream = await groq.chat.completions.create({
+        model: modelObj,
+        messages: finalMessages,
+        max_tokens: 512,
+        temperature: 0.7,
+        stream: true,
+      });
 
-    return new Response(readableStream, {
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+      const readableStream = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of stream) {
+              const text = chunk.choices?.[0]?.delta?.content;
+              if (text) {
+                controller.enqueue(encoder.encode(text));
+                const lagBase = modelTier === "premium" ? 0 : 60;
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 20 + lagBase));
+              }
+            }
+          } catch (err) {
+            console.error("GROQ STREAM ERROR:", err);
+            // Note: If streaming has already started, we can't easily fall back to a NEW stream
+            // for the same response object. This catch is for errors DURING streaming.
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(readableStream, {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+
+    } catch (groqErr) {
+      console.error("GROQ PRIMARY ERROR:", groqErr.message);
+      console.log("Attempting fallback to OpenRouter...");
+
+      try {
+        const openRouterStream = await callOpenRouter(finalMessages, modelTier);
+
+        // OpenRouter returns a standard Fetch ReadableStream
+        return new Response(openRouterStream, {
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        });
+      } catch (orErr) {
+        console.error("OPENROUTER FALLBACK ERROR:", orErr.message);
+        throw new Error(`Both Groq and OpenRouter failed. Groq: ${groqErr.message}, OR: ${orErr.message}`);
+      }
+    }
+
   } catch (err) {
     console.error("CHAT API ERROR DETAIL:", err);
     return new Response(`Chat failed: ${err.message || "Unknown error"}`, { status: 500 });

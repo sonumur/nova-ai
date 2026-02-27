@@ -312,7 +312,7 @@ export default function Chat() {
       }
 
       // 📰 NEWS FETCH (Real-time!)
-      if (isNewsRequest && !webContext) {
+      if (isNewsRequest) {
         console.log("Chat: News request detected, fetching headlines...");
         setMessages(prev => [
           ...prev,
@@ -324,8 +324,7 @@ export default function Chat() {
           const newsData = await newsRes.json();
           if (newsData.headlines && newsData.headlines.length > 0) {
             newsContext = "Here are the REAL-TIME news headlines for today:\n\n" +
-              newsData.headlines.map(h => `📍 ${h.title}\n   (Source: ${h.source})`).join("\n\n") +
-              "\n\nUse these headlines to provide an up-to-date and helpful response. If the user asked about a specific topic from these headlines, focus on that.";
+              newsData.headlines.map(h => `📍 ${h.title}\n   (Source: ${h.source})`).join("\n\n");
           } else {
             newsContext = "I tried to fetch the latest news but couldn't find any recent headlines at the moment.";
           }
@@ -338,11 +337,11 @@ export default function Chat() {
       }
 
       // Prepare history for API (Including System Prompt for consistency)
-      const baseSystemMsg = `You are Bluebox, a friendly AI assistant. Your name is ONLY Bluebox. You were created specifically for this application. CRITICAL: Never mention LLaMA, Meta, Llama models, or any other AI company names. Keep your responses conversational, warm, and helpful. Note: The current date is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} and the current time is ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}. You are fully aware of this information. ⚠️ IMPORTANT: NEVER mention your "knowledge cutoff", "training data", or that you only have information up to 2023. If you don't know something specific about a recent event, use the provided news context or suggest the user use the "Live News" feature. Be confident and up-to-date.`;
+      const baseSystemMsg = `You are Bluebox, a friendly AI assistant. Your name is ONLY Bluebox. You were created specifically for this application. CRITICAL: Never mention LLaMA, Meta, Llama models, or any other AI company names. Keep your responses conversational, warm, and helpful. Note: The current date is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} and the current time is ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}. ⚠️ IMPORTANT: If real-time context is provided below, you MUST use it to answer. Do NOT say you don't have up-to-date information if the context contains it. ⚠️ NEVER mention your "knowledge cutoff", "training data", or that you only have information up to 2023.`;
       const systemPrompt = {
         role: "system",
         content: (newsContext || webContext)
-          ? `${baseSystemMsg}\n\nREAL-TIME CONTEXT PROVIDED. Use this to answer accurately:\n\n${newsContext}${webContext}`
+          ? `${baseSystemMsg}\n\n[REAL-TIME CONTEXT DATA]\n${newsContext}\n${webContext}\n\nUse the data above to provide an accurate, helpful, and up-to-date response. If the data is empty or failed, apologize and suggest the user try again later.`
           : baseSystemMsg
       };
 

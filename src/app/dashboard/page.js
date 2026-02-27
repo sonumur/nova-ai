@@ -5,13 +5,9 @@ import {
   Users,
   MessageSquare,
   Download,
-  MoreHorizontal,
   ChevronUp,
-  ChevronDown,
   Clock,
   CheckCircle2,
-  AlertCircle,
-  Maximize
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { db } from "../../lib/firebase";
@@ -20,13 +16,12 @@ import UsageChart from "./components/UsageChart";
 
 export default function DashboardHome() {
   const [stats, setStats] = useState({
-    earnings: "$30,200",
-    pageViews: "290+",
-    chats: "145",
-    messages: "500"
+    earnings: "₹0",
+    chats: "0",
+    users: "0+",
+    messages: "0"
   });
 
-  const [recentChats, setRecentChats] = useState([]);
   const [activeUsers, setActiveUsers] = useState([]);
   const [recentTransactions, setRecentTransactions] = useState([]);
 
@@ -84,13 +79,12 @@ export default function DashboardHome() {
         const results = await Promise.all(messagePromises);
         messageCount = results.reduce((acc, curr) => acc + curr, 0);
 
-        setStats(prev => ({
-          ...prev,
+        setStats({
           earnings: `₹${totalEarnings.toLocaleString()}`,
           chats: totalChats.toString(),
           users: userIds.size.toString() + "+",
           messages: messageCount.toString()
-        }));
+        });
 
         // Convert user data to array and set active users
         const usersArray = Array.from(userDataMap.entries()).map(([userId, data]) => ({
@@ -98,10 +92,6 @@ export default function DashboardHome() {
           ...data
         }));
         setActiveUsers(usersArray.slice(0, 5)); // Show top 5 active users
-
-        const q = query(collection(db, "chats"), orderBy("createdAt", "desc"), limit(5));
-        const recentSnap = await getDocs(q);
-        setRecentChats(recentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (err) {
         console.error("Dashboard: Error fetching stats:", err);
       }
@@ -159,202 +149,162 @@ export default function DashboardHome() {
   };
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-16 pb-20">
 
-      {/* Breadcrumbs */}
-      <div className="flex items-center justify-between">
+      {/* Breadcrumbs & Title */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b-4 border-[#1c1917] pb-10">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">Dashboard</h2>
-          <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
-            <span className="hover:text-[#4d6bfe] cursor-pointer">Dashboard</span>
-            <span>/</span>
-            <span className="text-gray-500 font-medium">Admin Overview</span>
+          <h2 className="text-5xl font-black text-[#1c1917] tracking-tighter uppercase leading-none">
+            Welcome, <span className="text-[#4d6bfe]">Admin</span>
+          </h2>
+          <div className="flex items-center gap-4 text-[10px] text-stone-400 mt-6 font-black uppercase tracking-[0.3em]">
+            <span className="hover:text-[#1c1917] cursor-pointer transition-human">System</span>
+            <span className="text-stone-200">/</span>
+            <span className="text-[#1c1917] border-b-2 border-[#1c1917]">Dashboard Overview</span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-4">
           <button
             onClick={handleDownloadReport}
-            className="px-4 py-2 bg-[#4d6bfe] rounded-lg text-xs font-bold text-white hover:bg-[#3d56d1] transition-colors shadow-md shadow-[#4d6bfe]/20"
+            className="group flex items-center gap-3 px-8 py-4 bg-[#1c1917] text-white border-2 border-[#1c1917] text-[11px] font-black uppercase tracking-widest transition-human active:scale-95"
           >
-            Download Report
+            <Download size={18} />
+            Export Data
           </button>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 border-2 border-[#1c1917]">
         {statCards.map((card, i) => (
           <motion.div
             key={card.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="group relative overflow-hidden rounded-3xl p-6 bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: i * 0.05 }}
+            className={`p-10 bg-white border-[#1c1917] ${i < 3 ? 'md:border-r-2' : ''} ${i < 4 ? 'border-b-2 lg:border-b-0' : ''} transition-human cursor-pointer hover:bg-stone-50`}
           >
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">{card.label}</p>
-                <h3 className="text-3xl font-black text-gray-800 mt-2 tracking-tight">{card.value}</h3>
+            <div className="flex justify-between items-start mb-12">
+              <div className={`p-4 border-2 border-[#1c1917] ${card.bg} ${card.color} group-hover:bg-white transition-human`}>
+                <card.icon size={28} strokeWidth={3} />
               </div>
-              <div className={`p-3 rounded-2xl ${card.bg} ${card.color} group-hover:scale-110 transition-transform duration-300`}>
-                <card.icon size={24} strokeWidth={2.5} />
+              <div className="text-right">
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em] mb-2">{card.label}</p>
+                <h3 className="text-4xl font-black text-[#1c1917] tracking-tighter tabular-nums">{card.value}</h3>
               </div>
             </div>
 
-            {/* Visual Chart Placeholder (Mini Wave) */}
-            <div className={`h-10 flex items-end gap-1 mb-4 opacity-30 ${card.color}`}>
-              {[0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.4].map((h, i) => (
-                <div key={i} className="flex-1 bg-current rounded-t-sm" style={{ height: `${h * 100}%` }} />
-              ))}
+            <div className="flex items-center justify-between mb-6">
+              <div className={`h-10 flex items-end gap-1.5 opacity-30 ${card.color}`}>
+                {[0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.4].map((h, i) => (
+                  <div key={i} className="w-1.5 bg-current" style={{ height: `${h * 100}%` }} />
+                ))}
+              </div>
+              <span className="text-[11px] font-black text-emerald-600 border border-emerald-200 px-3 py-1 bg-emerald-50">+12.5%</span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 border-t border-gray-50 pt-4">
-              <Clock size={12} />
-              <span>Update: {card.update}</span>
+            <div className="flex items-center gap-3 text-[9px] font-black text-stone-400 border-t border-stone-100 pt-6 uppercase tracking-widest">
+              <Clock size={14} className="opacity-50" />
+              <span>Auto-synched {card.update}</span>
             </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 border-2 border-[#1c1917]">
         {/* User Interaction Chart Area */}
-        <div className="lg:col-span-3 space-y-8">
+        <div className="lg:col-span-3 border-b-2 border-[#1c1917]">
           <UsageChart />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Transactions Table */}
-        <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-8 pb-4 flex justify-between items-center">
-            <h4 className="text-lg font-bold text-gray-800">Recent Transactions</h4>
-            <button className="text-gray-400 hover:text-gray-600 outline-none">
-              <Maximize size={16} />
-            </button>
+        {/* Recent Transactions Table - Box Style */}
+        <div className="lg:col-span-2 bg-white flex flex-col border-r-2 border-[#1c1917]">
+          <div className="p-10 pb-6 flex justify-between items-center border-b border-stone-100">
+            <div>
+              <h4 className="text-2xl font-black text-[#1c1917] tracking-tighter uppercase">Recent Activity</h4>
+              <p className="text-[10px] text-stone-400 font-black uppercase tracking-widest mt-2">Latest verified transactions</p>
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left bg-white">
-              <thead className="bg-white text-gray-400 border-b border-gray-50">
-                <tr>
-                  <th className="px-8 py-4 text-[10px] font-extrabold uppercase tracking-widest">User / ID</th>
-                  <th className="px-8 py-4 text-[10px] font-extrabold uppercase tracking-widest text-center">Date & Time</th>
-                  <th className="px-8 py-4 text-[10px] font-extrabold uppercase tracking-widest text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {recentTransactions.length > 0 ? (
-                  recentTransactions.map((tx, i) => (
-                    <tr key={tx.id || i} className="hover:bg-gray-50 transition-colors group">
-                      <td className="px-8 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-[#4d6bfe]/5 flex items-center justify-center text-[#4d6bfe]">
-                            <TrendingUp size={14} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-700 truncate max-w-[150px] md:max-w-none">{tx.email}</p>
-                            <p className="text-[10px] text-gray-400 font-medium">Pro Subscription ({tx.billingCycle})</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5">
-                        <div className="flex flex-col items-center">
-                          <p className="text-xs font-bold text-gray-700">
-                            {tx.createdAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </p>
-                          <p className="text-[10px] text-gray-400 font-bold">
-                            {tx.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5 text-right">
-                        <p className="text-sm font-black text-[#4d6bfe]">₹{tx.amount.toLocaleString()}</p>
-                        <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-wide">Success</p>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="3" className="px-8 py-12 text-center text-gray-400 italic">
-                      No recent transactions found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="p-6 border-t border-gray-50 flex justify-center">
-            <button className="text-xs font-bold text-[#4d6bfe] hover:underline">View All Transactions</button>
+          <div className="flex-1">
+            {recentTransactions.length > 0 ? (
+              recentTransactions.map((tx, i) => (
+                <div key={tx.id || i} className="flex items-center justify-between p-8 border-b border-stone-100 hover:bg-stone-50 transition-human group">
+                  <div className="flex items-center gap-6">
+                    <div className="w-14 h-14 bg-white border-2 border-[#1c1917] flex items-center justify-center text-[#1c1917] group-hover:bg-[#1c1917] group-hover:text-white transition-human">
+                      <TrendingUp size={22} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-[#1c1917] uppercase tracking-tighter">{tx.email}</p>
+                      <p className="text-[10px] text-stone-400 font-black uppercase tracking-widest mt-1">Tier: PRO &middot; Cycle: {tx.billingCycle}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-black text-[#1c1917] tabular-nums">₹{tx.amount}</p>
+                    <p className="text-[9px] text-[#4d6bfe] font-black uppercase tracking-[0.2em] mt-1">Confirmed</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-24 text-center">
+                <p className="text-stone-300 font-black uppercase tracking-[.3em] text-xs italic">System Idle</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* User Activity Side Block */}
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-8 pb-4 flex flex-col gap-6">
-            <h4 className="text-lg font-bold text-gray-800">User Activity</h4>
+        {/* Status Panel - White Box Style */}
+        <div className="bg-white flex flex-col text-[#1c1917]">
+          <div className="p-10 pb-8 flex flex-col gap-8 border-b border-stone-100">
+            <h4 className="text-2xl font-black uppercase tracking-tighter">Status Panel</h4>
+            <p className="text-[10px] text-stone-400 font-black uppercase tracking-widest -mt-4">Live Session Monitor</p>
+          </div>
 
-            {/* User Stats Summary */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#f9f9f9] rounded-2x1 p-4 border border-gray-100 shadow-sm transition-all hover:bg-white hover:shadow-md group">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-[#4d6bfe]/10 flex items-center justify-center text-[#4d6bfe]">
-                    <Users size={16} />
+          {/* User Stats Summary at the Top */}
+          <div className="p-10 border-b-2 border-stone-100 bg-stone-50/50">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="border-2 border-[#1c1917] p-8 transition-human hover:bg-white active:scale-[0.98] group bg-white shadow-[4px_4px_0px_0px_#1c1917]">
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-[.2em] mb-4">Total Population</p>
+                <div className="flex items-end gap-3">
+                  <p className="text-6xl font-black tabular-nums leading-none tracking-tighter">{stats.users || "0"}</p>
+                  <div className="flex flex-col mb-1">
+                    <span className="text-[10px] text-emerald-600 font-black uppercase">↑ Active</span>
+                    <span className="text-[8px] text-stone-300 font-black uppercase">Live DB</span>
                   </div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-600">Total Users</span>
                 </div>
-                <p className="text-xl font-black text-gray-800 tabular-nums">{stats.users || "0"}</p>
-              </div>
-              <div className="bg-[#f9f9f9] rounded-2x1 p-4 border border-gray-100 shadow-sm transition-all hover:bg-white hover:shadow-md group">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  </div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-600">Active Now</span>
-                </div>
-                <p className="text-xl font-black text-gray-800 tabular-nums">
-                  {Math.max(1, Math.floor(parseInt(stats.users) * 0.15) || 1)}
-                </p>
               </div>
             </div>
           </div>
-          <div className="flex-1 px-8 py-4 space-y-6">
+
+          {/* Active Users List Below Stats */}
+          <div className="flex-1 p-4 space-y-1">
+            <p className="px-5 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Active Sessions</p>
             {activeUsers.length > 0 ? (
               activeUsers.map((user, i) => (
-                <div key={user.id || i} className="flex gap-4 group cursor-pointer hover:translate-x-1 transition-transform">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm relative shrink-0">
+                <div key={user.id || i} className="flex items-center gap-5 p-5 border border-transparent hover:border-stone-200 hover:bg-stone-50 transition-human group cursor-pointer">
+                  <div className="w-12 h-12 bg-white border-2 border-[#1c1917] flex items-center justify-center overflow-hidden shrink-0">
                     <img
                       src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.email || 'User')}&background=random`}
                       className="w-full h-full object-cover"
                       alt="User avatar"
                     />
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="text-xs font-bold text-gray-700 truncate">
-                        {user.name || user.email?.split('@')[0] || "User"}
-                      </p>
-                      <span className="text-[9px] text-gray-400 font-bold whitespace-nowrap">Active</span>
-                    </div>
-                    <p className="text-[11px] text-gray-400 truncate">
+                    <p className="text-sm font-black truncate uppercase tracking-tighter">
+                      {user.name || user.email?.split('@')[0] || "User"}
+                    </p>
+                    <p className="text-[10px] text-stone-400 font-black truncate opacity-60">
                       {user.email}
                     </p>
                   </div>
+                  <div className="w-2.5 h-2.5 bg-emerald-500 border border-white" />
                 </div>
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                  <Users size={24} className="text-gray-400" />
-                </div>
-                <p className="text-sm font-medium text-gray-500 mb-1">No Active Users Yet</p>
-                <p className="text-xs text-gray-400 max-w-[200px]">
-                  Users will appear here when they start chatting
-                </p>
+              <div className="flex flex-col items-center justify-center py-20 text-center opacity-20">
+                <Users size={40} strokeWidth={1} className="mb-6" />
+                <p className="text-[10px] font-black uppercase tracking-widest">No Active Sessions</p>
               </div>
             )}
-          </div>
-          <div className="p-6 border-t border-gray-50 flex justify-center">
-            <button className="text-xs font-bold text-[#4d6bfe] hover:underline">View all Activity</button>
           </div>
         </div>
       </div>
